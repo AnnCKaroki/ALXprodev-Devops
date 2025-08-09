@@ -1,0 +1,49 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# List of Pokémon to fetch
+POKEMONS=("Bulbasaur" "Ivysaur" "Venusaur" "Charmander" "Charmeleon")
+
+# Base API URL
+BASE_URL="https://pokeapi.co/api/v2/pokemon"
+
+# Config
+DELAY=2
+MAX_RETRIES=3
+ERROR_LOG="batch_errors.txt"
+> "$ERROR_LOG"
+
+for NAME in "${POKEMONS[@]}"; do
+    LOWER_NAME=$(echo "$NAME" | tr '[:upper:]' '[:lower:]')
+    FILE_NAME="${LOWER_NAME}.json"
+    URL="$BASE_URL/$LOWER_NAME"
+
+    echo " Fetching $NAME..."
+
+    RETRIES=0
+    SUCCESS=false
+
+    while [ "$RETRIES" -lt "$MAX_RETRIES" ]; do
+        if curl -s -f "$URL" -o "$FILE_NAME"; then
+            echo " Successfully saved to $FILE_NAME"
+            SUCCESS=true
+            break
+        else
+            echo "Attempt $((RETRIES+1)) failed for $NAME. Retrying in $DELAY seconds..."
+            sleep "$DELAY"
+            ((RETRIES++))
+        fi
+    done
+
+    if [ "$SUCCESS" = false ]; then
+        echo "$(date): Failed to fetch $NAME from $URL after $MAX_RETRIES attempts." >> "$ERROR_LOG"
+        echo "Failed to fetch $NAME (logged in $ERROR_LOG)"
+    fi
+
+    # Delay between different Pokémon to avoid rate limits
+    sleep "$DELAY"
+done
+
+echo -e "\n Batch fetch complete. Check $ERROR_LOG for any failures."
+
