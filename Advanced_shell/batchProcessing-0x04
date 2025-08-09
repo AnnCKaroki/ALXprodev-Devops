@@ -1,0 +1,40 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# List of Pokémon
+POKEMONS=("Bulbasaur" "Ivysaur" "Venusaur" "Charmander" "Charmeleon")
+
+# API base URL
+BASE_URL="https://pokeapi.co/api/v2/pokemon"
+
+# Output: Clear previous error log
+ERROR_LOG="parallel_errors.txt"
+> "$ERROR_LOG"
+
+# Function to fetch a single Pokémon (used in background)
+fetch_pokemon() {
+    NAME="$1"
+    LOWER_NAME=$(echo "$NAME" | tr '[:upper:]' '[:lower:]')
+    FILE_NAME="${LOWER_NAME}.json"
+    URL="$BASE_URL/$LOWER_NAME"
+
+    echo "🔄 Fetching $NAME..."
+
+    if curl -s -f "$URL" -o "$FILE_NAME"; then
+        echo "Successfully saved $FILE_NAME"
+    else
+        echo "Failed to fetch $NAME from $URL" >> "$ERROR_LOG"
+        echo "Logged error for $NAME"
+    fi
+}
+
+# Fetch all Pokémon in parallel
+for NAME in "${POKEMONS[@]}"; do
+    fetch_pokemon "$NAME" &
+done
+
+# Wait for all background jobs to finish
+wait
+
+echo -e "\n All parallel fetches complete. Check $ERROR_LOG for any failures."
